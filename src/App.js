@@ -7,63 +7,64 @@ function App() {
   const canvasRef = useRef(null);
   const [numberPlates, setNumberPlates] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [intervalId, setIntervalId] = useState(null);
+  const [stream, setStream] = useState(null);
 
   useEffect(() => {
     const startVideo = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        videoRef.current.srcObject = stream;
-      } catch (error) {
-        console.error("Error accessing the camera: ", error);
+        const userMediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        setStream(userMediaStream);
+        videoRef.current.srcObject = userMediaStream;
+      } catch (err) {
+        console.error('Error accessing camera: ', err);
       }
     };
 
     startVideo();
-  }, []);
 
-  const startRecording = () => {
-    if (!isRecording) {
-      setIsRecording(true);
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop()); // Stop all video tracks on cleanup
+      }
+    };
+  }, [stream]);
+
+  const detectPlates = async () => {
+    if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
 
-      const id = setInterval(async () => {
-        context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        const imageData = context.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+      setInterval(async () => {
+        if (isRecording) {
+          context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+          const imageData = context.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-        // Convert image data to a format Tesseract can process
-        const result = await Tesseract.recognize(imageData, 'eng', {
-          logger: info => console.log(info), // log progress
-        });
+          // Use Tesseract to recognize the text in the video frame
+          const result = await Tesseract.recognize(imageData.data, 'eng', {
+            logger: info => console.log(info), // log progress
+          });
 
-        const detectedText = result.data.text.trim();
-        
-        // Filter the detected text for likely number plates
-        if (detectedText && isValidPlate(detectedText)) {
-          setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
+          const detectedText = result.data.text.trim();
+          if (detectedText) {
+            setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
+          }
         }
       }, 3000); // Change this interval based on performance needs
-      
-      setIntervalId(id); // Save the interval ID to stop it later
     }
   };
 
-  const stopRecording = () => {
-    if (isRecording) {
-      clearInterval(intervalId);
-      setIsRecording(false);
-      setIntervalId(null);
-    }
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    detectPlates();
   };
 
-  const isValidPlate = (text) => {
-    return /^[A-Z0-9\s-]+$/.test(text); // Basic validation for alphanumeric characters, spaces, and dashes
+  const handleStopRecording = () => {
+    setIsRecording(false);
   };
 
   return (
     <div className="App">
       <h1>Number Plate Detector</h1>
-      <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto', border: '2px solid white' }} />
+      <video ref={videoRef} autoPlay style={{ maxWidth: '100%' }} />
       <canvas ref={canvasRef} width="640" height="480" style={{ display: 'none' }} />
       <h2>Detected Number Plates:</h2>
       <ul>
@@ -71,9 +72,8 @@ function App() {
           <li key={index}>{plate}</li>
         ))}
       </ul>
-      <button onClick={isRecording ? stopRecording : startRecording}>
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
-      </button>
+      <button onClick={handleStartRecording}>Start Recording</button>
+      <button onClick={handleStopRecording}>Stop Recording</button>
     </div>
   );
 }
