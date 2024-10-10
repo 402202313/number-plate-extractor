@@ -1,54 +1,61 @@
-import { saveAs } from "file-saver";
-import React, { useRef, useState } from "react";
-import Tesseract from "tesseract.js";
+import React, { useEffect, useRef, useState } from 'react';
+import Tesseract from 'tesseract.js';
 import './App.css';
 
 function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const [detectedPlates, setDetectedPlates] = useState([]);
+  const [numberPlates, setNumberPlates] = useState([]);
 
-  const startVideo = () => {
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+  useEffect(() => {
+    const startVideo = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       videoRef.current.srcObject = stream;
-    });
-  };
 
-  const captureFrame = () => {
-    const canvas = canvasRef.current;
-    const context = canvas.getContext("2d");
-    context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    const image = canvas.toDataURL("image/png");
+      videoRef.current.onloadedmetadata = () => {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+      };
+    };
 
-    Tesseract.recognize(image, 'eng', { logger: (m) => console.log(m) })
-      .then(({ data: { text } }) => {
-        const detectedPlate = text.trim();
-        if (detectedPlate) {
-          setDetectedPlates((prev) => [...prev, detectedPlate]);
-        }
-      });
-  };
+    startVideo();
 
-  // Save detected plates locally
-  const savePlates = () => {
-    const blob = new Blob([JSON.stringify(detectedPlates, null, 2)], {
-      type: "application/json",
-    });
-    saveAs(blob, "detected_plates.json");
-  };
+    const detectPlates = async () => {
+      if (videoRef.current && canvasRef.current) {
+        const context = canvasRef.current.getContext('2d');
+
+        setInterval(async () => {
+          try {
+            context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+            const imageData = canvasRef.current.toDataURL('image/png');
+
+            // Use Tesseract to recognize the text in the video frame
+            const result = await Tesseract.recognize(imageData, 'eng', {
+              logger: info => console.log(info), // log progress
+            });
+
+            const detectedText = result.data.text.trim();
+            if (detectedText) {
+              setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
+            }
+          } catch (error) {
+            console.error("Error during Tesseract processing: ", error);
+          }
+        }, 3000); // Change this interval based on performance needs
+      }
+    };
+
+    detectPlates();
+  }, []);
 
   return (
     <div className="App">
-      <h1>South African Number Plate Extractor</h1>
-      <video ref={videoRef} width="640" height="480" autoPlay></video>
-      <canvas ref={canvasRef} width="640" height="480" style={{ display: "none" }}></canvas>
-      <button onClick={startVideo}>Start Video</button>
-      <button onClick={captureFrame}>Capture Frame</button>
-      <button onClick={savePlates}>Save Detected Plates</button>
-
-      <h2>Detected Plates</h2>
+      <h1>Number Plate Detector</h1>
+      <video ref={videoRef} autoPlay style={{ display: 'none' }} />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <h2>Detected Number Plates:</h2>
       <ul>
-        {detectedPlates.map((plate, index) => (
+        {numberPlates.map((plate, index) => (
           <li key={index}>{plate}</li>
         ))}
       </ul>
