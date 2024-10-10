@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/number-plate-extractor/static/css/main.01b12453.css",
-    "main.js": "/number-plate-extractor/static/js/main.714f4b10.js",
+    "main.css": "/number-plate-extractor/static/css/main.de2334b1.css",
+    "main.js": "/number-plate-extractor/static/js/main.15995ffc.js",
     "static/js/453.c0b95101.chunk.js": "/number-plate-extractor/static/js/453.c0b95101.chunk.js",
     "index.html": "/number-plate-extractor/index.html",
-    "main.01b12453.css.map": "/number-plate-extractor/static/css/main.01b12453.css.map",
-    "main.714f4b10.js.map": "/number-plate-extractor/static/js/main.714f4b10.js.map",
+    "main.de2334b1.css.map": "/number-plate-extractor/static/css/main.de2334b1.css.map",
+    "main.15995ffc.js.map": "/number-plate-extractor/static/js/main.15995ffc.js.map",
     "453.c0b95101.chunk.js.map": "/number-plate-extractor/static/js/453.c0b95101.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.01b12453.css",
-    "static/js/main.714f4b10.js"
+    "static/css/main.de2334b1.css",
+    "static/js/main.15995ffc.js"
   ]
 }
