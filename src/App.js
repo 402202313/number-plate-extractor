@@ -11,78 +11,66 @@ function App() {
 
   useEffect(() => {
     const startVideo = async () => {
-      const constraints = {
-        video: { facingMode: { exact: "environment" } }, // Prefer back camera
-      };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); // Use the back camera
       videoRef.current.srcObject = stream;
-
-      videoRef.current.onloadedmetadata = () => {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-      };
     };
 
     startVideo();
-
-    return () => {
-      // Cleanup on component unmount
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
   }, []);
 
   const startRecording = () => {
-    setIsRecording(true);
-    const context = canvasRef.current.getContext('2d');
-    const id = setInterval(async () => {
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      const imageData = canvasRef.current.toDataURL('image/png');
+    if (!isRecording) {
+      setIsRecording(true);
+      const context = canvasRef.current.getContext('2d');
 
-      try {
+      const id = setInterval(async () => {
+        context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+        const imageData = context.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+        // Convert image data to a format Tesseract can process
         const result = await Tesseract.recognize(imageData, 'eng', {
           logger: info => console.log(info), // log progress
         });
 
         const detectedText = result.data.text.trim();
-        if (detectedText) {
+        
+        // Filter the detected text for likely number plates
+        if (detectedText && isValidPlate(detectedText)) {
           setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
         }
-      } catch (error) {
-        console.error("Error during Tesseract processing: ", error);
-      }
-    }, 3000); // Change this interval based on performance needs
-
-    setIntervalId(id);
+      }, 3000); // Change this interval based on performance needs
+      
+      setIntervalId(id); // Save the interval ID to stop it later
+    }
   };
 
   const stopRecording = () => {
-    setIsRecording(false);
-    if (intervalId) {
+    if (isRecording) {
       clearInterval(intervalId);
+      setIsRecording(false);
       setIntervalId(null);
     }
+  };
+
+  const isValidPlate = (text) => {
+    // Add your validation logic here (e.g., regex to check for number plate patterns)
+    return /^[A-Z0-9\s-]+$/.test(text); // Basic validation for alphanumeric characters, spaces, and dashes
   };
 
   return (
     <div className="App">
       <h1>Number Plate Detector</h1>
-      <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto' }} />
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      <div>
-        {isRecording ? (
-          <button onClick={stopRecording}>Stop Recording</button>
-        ) : (
-          <button onClick={startRecording}>Start Recording</button>
-        )}
-      </div>
+      <video ref={videoRef} autoPlay style={{ maxWidth: '100%' }} />
+      <canvas ref={canvasRef} width="640" height="480" style={{ display: 'none' }} />
       <h2>Detected Number Plates:</h2>
       <ul>
         {numberPlates.map((plate, index) => (
           <li key={index}>{plate}</li>
         ))}
       </ul>
+      <button onClick={isRecording ? stopRecording : startRecording}>
+        {isRecording ? 'Stop Recording' : 'Start Recording'}
+      </button>
     </div>
   );
 }
