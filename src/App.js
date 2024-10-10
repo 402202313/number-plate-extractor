@@ -6,10 +6,15 @@ function App() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [numberPlates, setNumberPlates] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [intervalId, setIntervalId] = useState(null);
 
   useEffect(() => {
     const startVideo = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const constraints = {
+        video: { facingMode: { exact: "environment" } }, // Prefer back camera
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       videoRef.current.srcObject = stream;
 
       videoRef.current.onloadedmetadata = () => {
@@ -20,39 +25,58 @@ function App() {
 
     startVideo();
 
-    const detectPlates = async () => {
-      if (videoRef.current && canvasRef.current) {
-        const context = canvasRef.current.getContext('2d');
-
-        setInterval(async () => {
-          try {
-            context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-            const imageData = canvasRef.current.toDataURL('image/png');
-
-            // Use Tesseract to recognize the text in the video frame
-            const result = await Tesseract.recognize(imageData, 'eng', {
-              logger: info => console.log(info), // log progress
-            });
-
-            const detectedText = result.data.text.trim();
-            if (detectedText) {
-              setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
-            }
-          } catch (error) {
-            console.error("Error during Tesseract processing: ", error);
-          }
-        }, 3000); // Change this interval based on performance needs
+    return () => {
+      // Cleanup on component unmount
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
-
-    detectPlates();
   }, []);
+
+  const startRecording = () => {
+    setIsRecording(true);
+    const context = canvasRef.current.getContext('2d');
+    const id = setInterval(async () => {
+      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      const imageData = canvasRef.current.toDataURL('image/png');
+
+      try {
+        const result = await Tesseract.recognize(imageData, 'eng', {
+          logger: info => console.log(info), // log progress
+        });
+
+        const detectedText = result.data.text.trim();
+        if (detectedText) {
+          setNumberPlates(prevPlates => [...new Set([...prevPlates, detectedText])]); // add new plate
+        }
+      } catch (error) {
+        console.error("Error during Tesseract processing: ", error);
+      }
+    }, 3000); // Change this interval based on performance needs
+
+    setIntervalId(id);
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    if (intervalId) {
+      clearInterval(intervalId);
+      setIntervalId(null);
+    }
+  };
 
   return (
     <div className="App">
       <h1>Number Plate Detector</h1>
-      <video ref={videoRef} autoPlay style={{ display: 'none' }} />
+      <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto' }} />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <div>
+        {isRecording ? (
+          <button onClick={stopRecording}>Stop Recording</button>
+        ) : (
+          <button onClick={startRecording}>Start Recording</button>
+        )}
+      </div>
       <h2>Detected Number Plates:</h2>
       <ul>
         {numberPlates.map((plate, index) => (
