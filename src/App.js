@@ -11,8 +11,12 @@ function App() {
 
   useEffect(() => {
     const startVideo = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); // Use the back camera
-      videoRef.current.srcObject = stream;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        videoRef.current.srcObject = stream;
+      } catch (error) {
+        console.error("Error accessing the camera: ", error);
+      }
     };
 
     startVideo();
@@ -53,14 +57,13 @@ function App() {
   };
 
   const isValidPlate = (text) => {
-    // Add your validation logic here (e.g., regex to check for number plate patterns)
     return /^[A-Z0-9\s-]+$/.test(text); // Basic validation for alphanumeric characters, spaces, and dashes
   };
 
   return (
     <div className="App">
       <h1>Number Plate Detector</h1>
-      <video ref={videoRef} autoPlay style={{ maxWidth: '100%' }} />
+      <video ref={videoRef} autoPlay style={{ width: '100%', height: 'auto', border: '2px solid white' }} />
       <canvas ref={canvasRef} width="640" height="480" style={{ display: 'none' }} />
       <h2>Detected Number Plates:</h2>
       <ul>

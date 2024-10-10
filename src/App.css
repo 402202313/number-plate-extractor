@@ -19,8 +19,8 @@ h1 {
   font-size: 2.5em; /* Increase font size for visibility */
 }
 
-video, canvas {
-  border: 2px solid #fff; /* White border for video and canvas */
+video {
+  border: 2px solid #fff; /* White border for video */
   margin-bottom: 10px;
   max-width: 100%; /* Responsive width */
   height: auto; /* Maintain aspect ratio */
